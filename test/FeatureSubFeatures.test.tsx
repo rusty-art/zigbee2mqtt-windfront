@@ -410,13 +410,16 @@ describe("FeatureSubFeatures", () => {
             await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(onChange).toHaveBeenCalledTimes(1);
-            expect(onChange).toHaveBeenCalledWith({
-                climate: {
-                    existing: "value",
-                    humidity: 50,
-                    temperature: 22,
+            expect(onChange).toHaveBeenCalledWith(
+                {
+                    climate: {
+                        existing: "value",
+                        humidity: 50,
+                        temperature: 22,
+                    },
                 },
-            });
+                undefined,
+            );
         });
 
         it("calls onChange immediately with merged deviceState without property", async () => {
@@ -446,11 +449,14 @@ describe("FeatureSubFeatures", () => {
             await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(onChange).toHaveBeenCalledTimes(1);
-            expect(onChange).toHaveBeenCalledWith({
-                existing: "value",
-                humidity: 50,
-                temperature: 22,
-            });
+            expect(onChange).toHaveBeenCalledWith(
+                {
+                    existing: "value",
+                    humidity: 50,
+                    temperature: 22,
+                },
+                undefined,
+            );
         });
 
         it("handles sequential changes", async () => {
@@ -477,16 +483,22 @@ describe("FeatureSubFeatures", () => {
             await callback?.onChange({ val: "first" });
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            expect(onChange).toHaveBeenLastCalledWith({
-                test: { val: "first" },
-            });
+            expect(onChange).toHaveBeenLastCalledWith(
+                {
+                    test: { val: "first" },
+                },
+                undefined,
+            );
 
             await callback?.onChange({ val: "second" });
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            expect(onChange).toHaveBeenLastCalledWith({
-                test: { val: "second" },
-            });
+            expect(onChange).toHaveBeenLastCalledWith(
+                {
+                    test: { val: "second" },
+                },
+                undefined,
+            );
         });
     });
 
@@ -547,7 +559,7 @@ describe("FeatureSubFeatures", () => {
 
             mockApplyCallback?.();
 
-            expect(onChange).toHaveBeenCalledWith({ climate: { temperature: 22 } });
+            expect(onChange).toHaveBeenCalledWith({ climate: { temperature: 22 } }, undefined);
         });
 
         it("passes value unwrapped when type=composite without property", async () => {
@@ -578,7 +590,7 @@ describe("FeatureSubFeatures", () => {
 
             mockApplyCallback?.();
 
-            expect(onChange).toHaveBeenCalledWith({ feature1: 21 });
+            expect(onChange).toHaveBeenCalledWith({ feature1: 21 }, undefined);
         });
 
         it("accumulates state through setState", async () => {
@@ -621,7 +633,7 @@ describe("FeatureSubFeatures", () => {
             mockApplyCallback?.();
 
             expect(onChange).toHaveBeenCalledTimes(1);
-            expect(onChange).toHaveBeenCalledWith({ settings: { val1: 10, val2: 20 } });
+            expect(onChange).toHaveBeenCalledWith({ settings: { val1: 10, val2: 20 } }, undefined);
         });
 
         it("accumulates state through setState with merged deviceState", async () => {
@@ -663,13 +675,16 @@ describe("FeatureSubFeatures", () => {
             mockApplyCallback?.();
 
             expect(onChange).toHaveBeenCalledTimes(1);
-            expect(onChange).toHaveBeenLastCalledWith({
-                settings: {
-                    existing: "data",
-                    val1: 10,
-                    val2: 20,
+            expect(onChange).toHaveBeenLastCalledWith(
+                {
+                    settings: {
+                        existing: "data",
+                        val1: 10,
+                        val2: 20,
+                    },
                 },
-            });
+                undefined,
+            );
         });
     });
 
@@ -703,13 +718,16 @@ describe("FeatureSubFeatures", () => {
             mockApplyCallback?.();
 
             expect(onChange).toHaveBeenCalledTimes(1);
-            expect(onChange).toHaveBeenCalledWith({
-                test_property: {
-                    temperature: 25,
-                    humidity: 60,
-                    feature1: "test-value",
+            expect(onChange).toHaveBeenCalledWith(
+                {
+                    test_property: {
+                        temperature: 25,
+                        humidity: 60,
+                        feature1: "test-value",
+                    },
                 },
-            });
+                undefined,
+            );
         });
 
         it("calls onChange with unwrapped combined state when no property", async () => {
@@ -740,11 +758,14 @@ describe("FeatureSubFeatures", () => {
             mockApplyCallback?.();
 
             expect(onChange).toHaveBeenCalledTimes(1);
-            expect(onChange).toHaveBeenCalledWith({
-                temperature: 25,
-                humidity: 60,
-                prop: "test-value",
-            });
+            expect(onChange).toHaveBeenCalledWith(
+                {
+                    temperature: 25,
+                    humidity: 60,
+                    prop: "test-value",
+                },
+                undefined,
+            );
         });
 
         it("merges deviceState with accumulated state changes", async () => {
@@ -784,7 +805,7 @@ describe("FeatureSubFeatures", () => {
             mockApplyCallback?.();
 
             expect(onChange).toHaveBeenCalledTimes(1);
-            expect(onChange).toHaveBeenCalledWith({ settings: { existing: "value", val1: "new1", val2: "new2", val3: "new3" } });
+            expect(onChange).toHaveBeenCalledWith({ settings: { existing: "value", val1: "new1", val2: "new2", val3: "new3" } }, undefined);
         });
 
         it("works with empty deviceState", async () => {
@@ -813,11 +834,14 @@ describe("FeatureSubFeatures", () => {
 
             mockApplyCallback?.();
 
-            expect(onChange).toHaveBeenCalledWith({
-                test: {
-                    prop: "value",
+            expect(onChange).toHaveBeenCalledWith(
+                {
+                    test: {
+                        prop: "value",
+                    },
                 },
-            });
+                undefined,
+            );
         });
 
         it("works when no features have changed", async () => {
@@ -845,9 +869,12 @@ describe("FeatureSubFeatures", () => {
 
             mockApplyCallback?.();
 
-            expect(onChange).toHaveBeenCalledWith({
-                test: deviceState,
-            });
+            expect(onChange).toHaveBeenCalledWith(
+                {
+                    test: deviceState,
+                },
+                undefined,
+            );
         });
     });
 
@@ -898,9 +925,12 @@ describe("FeatureSubFeatures", () => {
 
             await callback?.onRead?.({ temperature: 22 });
 
-            expect(onRead).toHaveBeenCalledWith({
-                climate: { temperature: 22 },
-            });
+            expect(onRead).toHaveBeenCalledWith(
+                {
+                    climate: { temperature: 22 },
+                },
+                undefined,
+            );
         });
 
         it("passes unwrapped read value when no property", async () => {
@@ -925,7 +955,7 @@ describe("FeatureSubFeatures", () => {
 
             await callback?.onRead?.({ prop: "value" });
 
-            expect(onRead).toHaveBeenCalledWith({ prop: "value" });
+            expect(onRead).toHaveBeenCalledWith({ prop: "value" }, undefined);
         });
 
         it("passes read value directly when type is not composite", async () => {
@@ -951,7 +981,7 @@ describe("FeatureSubFeatures", () => {
 
             await callback?.onRead?.({ prop: "value" });
 
-            expect(onRead).toHaveBeenCalledWith({ prop: "value" });
+            expect(onRead).toHaveBeenCalledWith({ prop: "value" }, undefined);
         });
     });
 
@@ -997,7 +1027,7 @@ describe("FeatureSubFeatures", () => {
         mockApplyCallback?.();
 
         // state was reset
-        expect(onChange).toHaveBeenCalledWith({ test: {} });
+        expect(onChange).toHaveBeenCalledWith({ test: {} }, undefined);
     });
 
     it("handles endpointSpecific prop", () => {
@@ -1081,7 +1111,7 @@ describe("FeatureSubFeatures", () => {
         mockApplyCallback?.();
 
         expect(onChange).toHaveBeenCalledTimes(1);
-        expect(onChange).toHaveBeenCalledWith({ config: { nested: { deep: { value: "updated" } }, other: [1, 2, 3] } });
+        expect(onChange).toHaveBeenCalledWith({ config: { nested: { deep: { value: "updated" } }, other: [1, 2, 3] } }, undefined);
     });
 
     it("handles many features", () => {

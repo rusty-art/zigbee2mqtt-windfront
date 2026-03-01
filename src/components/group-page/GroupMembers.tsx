@@ -27,12 +27,12 @@ const GroupMembers = memo(({ sourceIdx, devices, group }: GroupMembersProps) => 
     );
 
     const setDeviceState = useCallback(
-        async (ieee: string, value: Record<string, unknown>): Promise<void> => {
+        async (ieee: string, value: Record<string, unknown>, transactionId?: string): Promise<void> => {
             await sendMessage<"{friendlyNameOrId}/set">(
                 sourceIdx,
                 // @ts-expect-error templated API endpoint
-                `${ieee}/set`,
-                value,
+                `${ieee}/request/set`,
+                { ...value, z2m_transaction: transactionId },
             );
         },
         [sourceIdx],

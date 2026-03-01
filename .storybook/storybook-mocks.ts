@@ -32,6 +32,23 @@ const cloneDeviceState = (ieee: string) => {
     }
 };
 
+/**
+ * Resolve a topic (IEEE address or friendly name) to the friendly name.
+ * In real Z2M, state updates are always published to the friendly_name topic.
+ * Commands can be sent to either IEEE or friendly name, but responses go to friendly name.
+ */
+const resolveToFriendlyName = (topic: string): string => {
+    // Check if topic looks like an IEEE address (starts with 0x)
+    if (topic.startsWith("0x")) {
+        const device = BRIDGE_DEVICES.payload.find((d) => d.ieee_address === topic);
+        if (device) {
+            return device.friendly_name;
+        }
+    }
+    // Already a friendly name or unknown
+    return topic;
+};
+
 class MockWebSocket extends EventTarget {
     static readonly CONNECTING = 0;
     static readonly OPEN = 1;
@@ -432,11 +449,110 @@ class MockWebSocket extends EventTarget {
             default: {
                 if (msg.topic.endsWith("/set")) {
                     const payload = msg.payload as Zigbee2MQTTRequest<"{friendlyNameOrId}/set">;
+                    const deviceTopic = msg.topic.replace("/set", "");
 
                     if ("command" in payload) {
                         this.#emit(structuredClone(BRIDGE_LOGGING_EXECUTE_COMMAND), 500);
                     } else if ("read" in payload) {
                         this.#emit(structuredClone(BRIDGE_LOGGING_READ_ATTR), 500);
+                    } else {
+                        // Command Response API: Send response on {device}/response topic
+                        const requestId = (payload as { z2m?: { request_id?: string } })?.z2m?.request_id;
+
+                        // Resolve to friendly name for consistent checking
+                        const friendlyName = resolveToFriendlyName(deviceTopic);
+
+                        if (requestId) {
+                            const sleepyDelays: Record<string, [number, number]> = {
+                                "test/sleepy-device-fast": [5000, 0],
+                                "test/sleepy-device-slow": [30000, 5000],
+                            };
+                            const sleepyDelay = sleepyDelays[friendlyName];
+
+                            // Simulate backend processing delay (50-200ms, realistic for Zigbee)
+                            const delay = 50 + Math.random() * 150;
+
+                            if (sleepyDelay) {
+                                // Sleepy device: Return "pending" with final:true
+                                // Fast variant (~5s) responds before frontend's 10s timeout.
+                                // Slow variant (~30-35s) triggers "queued" UX after timeout.
+                                this.#emit(
+                                    {
+                                        topic: `${deviceTopic}/response`,
+                                        payload: {
+                                            status: "pending",
+                                            z2m: { request_id: requestId, final: true },
+                                            data: payload,
+                                        },
+                                    },
+                                    delay,
+                                );
+
+                                // Simulate device waking up and confirming the command
+                                const wakeupDelay = sleepyDelay[0] + Math.random() * sleepyDelay[1];
+                                const stateTopic = resolveToFriendlyName(deviceTopic);
+                                const { z2m: _z2m, ...statePayload } = payload as Record<string, unknown>;
+                                this.#emit(
+                                    {
+                                        topic: stateTopic,
+                                        payload: {
+                                            ...statePayload,
+                                            last_seen: new Date().toISOString(),
+                                        },
+                                    },
+                                    wakeupDelay,
+                                );
+                            } else {
+                                // Regular device: 90% success, 10% error for realistic testing
+                                const isSuccess = Math.random() > 0.1;
+
+                                if (isSuccess) {
+                                    // Success response
+                                    this.#emit(
+                                        {
+                                            topic: `${deviceTopic}/response`,
+                                            payload: {
+                                                status: "ok",
+                                                z2m: { request_id: requestId },
+                                                data: payload,
+                                            },
+                                        },
+                                        delay,
+                                    );
+
+                                    // Also send state update (always to friendly_name topic, like real Z2M)
+                                    const stateTopic = resolveToFriendlyName(deviceTopic);
+                                    const { z2m: _z2m, ...statePayload } = payload as Record<string, unknown>;
+                                    this.#emit(
+                                        {
+                                            topic: stateTopic,
+                                            payload: {
+                                                ...statePayload,
+                                                last_seen: new Date().toISOString(),
+                                            },
+                                        },
+                                        delay + 50,
+                                    );
+                                } else {
+                                    // Error response (simulate timeout or device error)
+                                    this.#emit(
+                                        {
+                                            topic: `${deviceTopic}/response`,
+                                            payload: {
+                                                status: "error",
+                                                z2m: { request_id: requestId },
+                                                error: {
+                                                    code: "SEND_FAILED",
+                                                    message: "Send failed",
+                                                    zcl_status: 134,
+                                                },
+                                            },
+                                        },
+                                        delay,
+                                    );
+                                }
+                            }
+                        }
                     }
                 } else if (msg.topic.startsWith("bridge/request/")) {
                     const payload = msg.payload as { transaction: string };
