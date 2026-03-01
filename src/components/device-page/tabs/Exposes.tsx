@@ -1,9 +1,9 @@
-import { useCallback } from "react";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
+import { useDeviceCommands } from "../../../hooks/useDeviceCommands.js";
 import { useAppStore } from "../../../store.js";
 import type { Device } from "../../../types.js";
-import { sendMessage } from "../../../websocket/WebSocketManager.js";
 import Feature from "../../features/Feature.js";
 import FeatureWrapper from "../../features/FeatureWrapper.js";
 import { getFeatureKey } from "../../features/index.js";
@@ -17,29 +17,21 @@ export default function Exposes({ sourceIdx, device }: ExposesProps) {
     const { t } = useTranslation("common");
     const deviceState = useAppStore(useShallow((state) => state.deviceStates[sourceIdx][device.friendly_name] ?? {}));
 
-    const onChange = useCallback(
-        async (value: Record<string, unknown>) => {
-            await sendMessage<"{friendlyNameOrId}/set">(
-                sourceIdx,
-                // @ts-expect-error templated API endpoint
-                `${device.ieee_address}/set`,
-                value,
-            );
-        },
-        [sourceIdx, device.ieee_address],
-    );
+    // Track device state updates - increments whenever deviceState object changes
+    // This allows child components to detect device responses even if specific values don't change
+    // IMPORTANT: Increment synchronously during render (not in useEffect) so children see the
+    // updated version on the same render cycle. Effects run after render, causing a race condition.
+    const deviceStateVersionRef = useRef(0);
+    const prevDeviceStateRef = useRef<typeof deviceState | null>(null);
 
-    const onRead = useCallback(
-        async (value: Record<string, unknown>) => {
-            await sendMessage<"{friendlyNameOrId}/get">(
-                sourceIdx,
-                // @ts-expect-error templated API endpoint
-                `${device.ieee_address}/get`,
-                value,
-            );
-        },
-        [sourceIdx, device.ieee_address],
-    );
+    if (deviceState !== prevDeviceStateRef.current) {
+        deviceStateVersionRef.current++;
+    }
+    prevDeviceStateRef.current = deviceState;
+
+    const deviceStateVersion = deviceStateVersionRef.current;
+
+    const { onChange, onRead } = useDeviceCommands(sourceIdx, device);
 
     return device.definition?.exposes?.length ? (
         <div className="list bg-base-100">
@@ -49,10 +41,12 @@ export default function Exposes({ sourceIdx, device }: ExposesProps) {
                     feature={expose}
                     device={device}
                     deviceState={deviceState}
+                    deviceStateVersion={deviceStateVersion}
                     onChange={onChange}
                     onRead={onRead}
                     featureWrapperClass={FeatureWrapper}
                     parentFeatures={[]}
+                    sourceIdx={sourceIdx}
                 />
             ))}
         </div>
