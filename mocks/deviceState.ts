@@ -315,4 +315,33 @@ export const DEVICE_STATES: Message<DeviceState>[] = [
         },
         topic: "multi-sensor wiren",
     },
+    {
+        payload: {
+            linkquality: 180,
+            test_composite: {
+                temperature_setpoint: 21.5,
+                custom_value: 42,
+                enabled: true,
+                power_mode: "ON",
+                operating_mode: "auto",
+                device_name: "Living Room",
+            },
+            schedule_times: [360, 720, 1080],
+            test_climate: { local_temperature: 22.5, occupied_heating_setpoint: 21.0, system_mode: "heat", running_state: "idle" },
+            test_cover: { state: "OPEN", position: 75, tilt: 50 },
+            test_fan: { state: "ON", mode: "medium" },
+            test_light: { state: "ON", brightness: 200, color_temp: 300 },
+            test_lock: { state: "LOCK" },
+            test_switch: { state: "OFF" },
+        },
+        topic: "test/composite-device",
+    },
+    {
+        payload: { battery: 85, linkquality: 120, sleepy_composite: { temperature_setpoint: 20.0, enabled: false }, sleepy_power: "OFF" },
+        topic: "test/sleepy-device-fast",
+    },
+    {
+        payload: { battery: 85, linkquality: 120, sleepy_composite: { temperature_setpoint: 20.0, enabled: false }, sleepy_power: "OFF" },
+        topic: "test/sleepy-device-slow",
+    },
 ];

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import type { Zigbee2MQTTDeviceOptions } from "zigbee2mqtt";
 import type { DeviceState, FeatureWithAnySubFeatures } from "../../types.js";
 import { isEmptyObject } from "../../utils.js";
-import Button from "../Button.js";
 import type { ValueWithLabelOrPrimitive } from "../editors/EnumEditor.js";
+import { useCommandFeedback } from "../editors/useCommandFeedback.js";
+import ApplyButton from "./ApplyButton.js";
 import Feature from "./Feature.js";
 import { type BaseFeatureProps, getFeatureKey } from "./index.js";
 
@@ -13,6 +13,7 @@ interface FeatureSubFeaturesProps extends Omit<BaseFeatureProps<FeatureWithAnySu
     steps?: Record<string, ValueWithLabelOrPrimitive[]>;
     parentFeatures?: FeatureWithAnySubFeatures[];
     deviceState: DeviceState | Zigbee2MQTTDeviceOptions;
+    deviceStateVersion?: number;
     endpointSpecific?: boolean;
 }
 
@@ -36,17 +37,37 @@ export default function FeatureSubFeatures({
     onRead,
     device,
     deviceState,
+    deviceStateVersion,
     featureWrapperClass,
     minimal,
     endpointSpecific,
     steps,
+    sourceIdx,
 }: FeatureSubFeaturesProps) {
     const { type, property } = feature;
     const [state, setState] = useState<Record<string, unknown>>({});
-    const { t } = useTranslation("common");
     const combinedState = useMemo(() => ({ ...deviceState, ...state }), [deviceState, state]);
     const features = ("features" in feature && feature.features) || [];
     const isRoot = isFeatureRoot(type, parentFeatures);
+
+    // Use command feedback hook for Apply button state
+    const clearLocalChanges = useCallback(() => setState({}), []);
+    const { status, send } = useCommandFeedback({ sourceIdx, onSuccess: clearLocalChanges, deviceFriendlyName: device.friendly_name });
+    const isPending = status === "pending" || status === "queued";
+
+    // Check if there are actual local changes (value differs from device)
+    const deviceRecord = deviceState as Record<string, unknown> | undefined;
+    const hasLocalChanges = Object.keys(state).some((key) => state[key] !== deviceRecord?.[key]);
+
+    // Helper to check if a specific property has a local change
+    const propertyHasLocalChange = (prop: string): boolean => {
+        // If Apply is pending/timed out, show amber for properties that were sent
+        if (isPending && prop in state) {
+            return true;
+        }
+        // If not pending, show amber only if local value differs from device
+        return prop in state && state[prop] !== deviceRecord?.[prop];
+    };
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: reset on device switch
     useEffect(() => {
@@ -59,35 +80,35 @@ export default function FeatureSubFeatures({
     }, [deviceState]);
 
     const onFeatureChange = useCallback(
-        async (value: Record<string, unknown>): Promise<void> => {
+        (value: Record<string, unknown>, transactionId?: string): void => {
             setState((prev) => ({ ...prev, ...value }));
 
             if (!isRoot) {
                 if (type === "composite") {
                     const newValue = { ...deviceState, ...state, ...value };
 
-                    await onChange(property ? { [property]: newValue } : newValue);
+                    onChange(property ? { [property]: newValue } : newValue, transactionId);
                 } else {
-                    await onChange(value);
+                    onChange(value, transactionId);
                 }
             }
         },
         [deviceState, state, type, property, isRoot, onChange],
     );
 
-    const onRootApply = useCallback(async (): Promise<void> => {
+    const onRootApply = useCallback((): void => {
         const newState = { ...deviceState, ...state };
-
-        await onChange(property ? { [property]: newState } : newState);
-        setState({});
-    }, [property, onChange, state, deviceState]);
+        // The payload we send - used for optimistic update if queued
+        const sentPayload = property ? { [property]: newState } : newState;
+        send((txId) => onChange(sentPayload, txId), sentPayload);
+    }, [property, onChange, state, deviceState, send]);
 
     const onFeatureRead = useCallback(
-        async (prop: Record<string, unknown>): Promise<void> => {
+        (prop: Record<string, unknown>, transactionId?: string): void => {
             if (type === "composite") {
-                await onRead?.(property ? { [property]: prop } : prop);
+                onRead?.(property ? { [property]: prop } : prop, transactionId);
             } else {
-                await onRead?.(prop);
+                onRead?.(prop, transactionId);
             }
         },
         [onRead, type, property],
@@ -104,19 +125,28 @@ export default function FeatureSubFeatures({
                     parentFeatures={[...(parentFeatures ?? []), feature]}
                     device={device}
                     deviceState={combinedState}
+                    deviceStateVersion={deviceStateVersion}
                     onChange={onFeatureChange}
                     onRead={onFeatureRead}
                     featureWrapperClass={featureWrapperClass}
                     minimal={minimal}
                     endpointSpecific={endpointSpecific}
                     steps={steps?.[subFeature.name]}
+                    batched={isRoot}
+                    hasLocalChange={isRoot && subFeature.property !== undefined && propertyHasLocalChange(subFeature.property)}
+                    sourceIdx={sourceIdx}
                 />
             ))}
             {isRoot && (
-                <div className="self-end float-right mt-2">
-                    <Button className={`btn btn-primary ${minimal ? "btn-sm" : ""}`} onClick={onRootApply} title={feature.property ?? feature.name}>
-                        {t(($) => $.apply)}
-                    </Button>
+                <div className="flex flex-row gap-3 items-center w-full">
+                    <div className="flex-1" />
+                    <ApplyButton
+                        status={status}
+                        hasLocalChanges={hasLocalChanges}
+                        onClick={onRootApply}
+                        minimal={minimal}
+                        title={feature.property ?? feature.name}
+                    />
                 </div>
             )}
         </>
