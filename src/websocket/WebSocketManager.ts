@@ -32,7 +32,7 @@ type Connection = {
     transactionPrefix: string;
     transactionNumber: number;
     pending: Map<string, PendingRequest>;
-    /** Callbacks for transaction response messages (keyed by z2m_transaction) */
+    /** Callbacks for transaction response messages (keyed by transaction) */
     deviceSetCallbacks: Map<string, DeviceSetCallback>;
     deviceQueue: Message<Zigbee2MQTTAPI["{friendlyName}"]>[];
     logQueue: LogMessage[];
@@ -191,10 +191,10 @@ class WebSocketManager {
     /**
      * Register a callback for a transaction response.
      * The callback will be called when a {device}/response/set or /response/get
-     * message arrives with a matching z2m_transaction.
+     * message arrives with a matching transaction.
      *
      * @param sourceIdx - The source/connection index
-     * @param requestId - The z2m_transaction value to listen for
+     * @param requestId - The transaction value to listen for
      * @param callback - Function to call with the CommandResponse
      * @param timeoutMs - Optional timeout (default: 10000ms). Callback receives error response on timeout.
      */
@@ -211,7 +211,7 @@ class WebSocketManager {
                     data: {},
                     status: "error",
                     error: "Response timeout (frontend)",
-                    z2m_transaction: requestId,
+                    transaction: requestId,
                 });
             }
         }, timeoutMs);
@@ -596,11 +596,11 @@ class WebSocketManager {
     /**
      * Handle transaction response messages.
      * These arrive on {device}/response/set or /response/get when the
-     * frontend sent to {device}/request/set or /request/get with z2m_transaction.
+     * frontend sent to {device}/request/set or /request/get with transaction.
      */
     #handleDeviceSetResponse(conn: Connection, msg: Message): void {
         const payload = msg.payload as CommandResponse;
-        const txId = payload?.z2m_transaction;
+        const txId = payload?.transaction;
 
         if (!txId) {
             return;

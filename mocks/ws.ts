@@ -418,7 +418,7 @@ export function startServer() {
                             }, 500);
                         } else {
                             // Transaction Response API: Send response on {device}/response/{set|get}
-                            const requestId = msg.payload?.z2m_transaction ?? msg.payload?.z2m?.request_id;
+                            const requestId = msg.payload?.transaction;
 
                             if (requestId) {
                                 const friendlyName = resolveToFriendlyName(deviceTopic);
@@ -428,10 +428,10 @@ export function startServer() {
                                 };
                                 const sleepyDelay = sleepyDelays[friendlyName];
 
-                                // Strip z2m_transaction from payload (real backend strips before converter processing)
-                                const { z2m_transaction: _tx, z2m: _z2m, ...dataPayload } = msg.payload;
+                                // Strip transaction from payload (real backend strips before converter processing)
+                                const { transaction: _tx, ...dataPayload } = msg.payload;
 
-                                // Ping: no attribute keys beyond z2m_transaction
+                                // Ping: no attribute keys beyond transaction
                                 const isPing = Object.keys(dataPayload).length === 0;
 
                                 /** Send state topic update after successful command */
@@ -463,7 +463,7 @@ export function startServer() {
                                                 payload: {
                                                     data: {},
                                                     status: "ok",
-                                                    z2m_transaction: requestId,
+                                                    transaction: requestId,
                                                 },
                                             }),
                                         );
@@ -480,7 +480,7 @@ export function startServer() {
                                                 topic: `${deviceTopic}/response/${commandType}`,
                                                 payload: {
                                                     status: "ok",
-                                                    z2m_transaction: requestId,
+                                                    transaction: requestId,
                                                     data: isDeviceGet ? {} : dataPayload,
                                                 },
                                             }),
@@ -501,7 +501,7 @@ export function startServer() {
                                                     topic: `${deviceTopic}/response/${commandType}`,
                                                     payload: {
                                                         status: "ok",
-                                                        z2m_transaction: requestId,
+                                                        transaction: requestId,
                                                         data: isDeviceGet ? {} : dataPayload,
                                                     },
                                                 }),
@@ -509,8 +509,9 @@ export function startServer() {
 
                                             sendStateUpdate();
                                         } else {
-                                            // Error response with actual failed key names
-                                            const failedKeys = Object.keys(dataPayload).join(",");
+                                            // Error response: readable summary plus the original message per failed attribute
+                                            const failedKeys = Object.keys(dataPayload);
+                                            const mockError = "Mock Zigbee error";
 
                                             ws.send(
                                                 JSON.stringify({
@@ -518,8 +519,9 @@ export function startServer() {
                                                     payload: {
                                                         data: {},
                                                         status: "error",
-                                                        z2m_transaction: requestId,
-                                                        error: `failed:${failedKeys || "unknown"}`,
+                                                        transaction: requestId,
+                                                        error: `Failed to ${commandType} ${failedKeys.map((k) => `'${k}'`).join(", ")}: ${mockError}`,
+                                                        error_details: Object.fromEntries(failedKeys.map((k) => [k, mockError])),
                                                     },
                                                 }),
                                             );

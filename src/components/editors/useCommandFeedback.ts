@@ -9,9 +9,14 @@ const TIMEOUT_MS = 10000;
 
 export type CommandStatus = "idle" | "pending" | "ok" | "error" | "queued";
 
-/** Check if error string contains only superseded groups (no real failures) */
-function isOnlySuperseded(error: string): boolean {
-    return error.split("|").every((g) => g.startsWith("superseded:"));
+/** Herdsman rejects a queued command that was replaced by a newer one with this message */
+const SUPERSEDED_PATTERN = /request superseded/i;
+
+/** Check if every failed attribute was superseded by a newer command (no real failures) */
+export function isOnlySuperseded(errorDetails: Record<string, string> | undefined): boolean {
+    const messages = Object.values(errorDetails ?? {});
+
+    return messages.length > 0 && messages.every((message) => SUPERSEDED_PATTERN.test(message));
 }
 
 export function useCommandFeedback(
@@ -77,7 +82,7 @@ export function useCommandFeedback(
                         update("ok");
                         onSuccess?.();
                         timerRef.current = setTimeout(() => update("idle"), SUCCESS_MS);
-                    } else if (r.error && isOnlySuperseded(r.error)) {
+                    } else if (isOnlySuperseded(r.error_details)) {
                         // Superseded by newer command — not a real error, just clear
                         update("idle");
                     } else if (r.error === "Response timeout (frontend)" && isSleepy) {

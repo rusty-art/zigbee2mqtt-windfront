@@ -9,7 +9,7 @@ export function useDeviceCommands(sourceIdx: number, device: Device) {
                 sourceIdx,
                 // @ts-expect-error templated API endpoint
                 `${device.ieee_address}/request/set`,
-                { ...(value as Record<string, unknown>), z2m_transaction: transactionId },
+                { ...(value as Record<string, unknown>), transaction: transactionId },
             );
         },
         [sourceIdx, device.ieee_address],
@@ -21,7 +21,7 @@ export function useDeviceCommands(sourceIdx: number, device: Device) {
                 sourceIdx,
                 // @ts-expect-error templated API endpoint
                 `${device.ieee_address}/request/get`,
-                { ...value, z2m_transaction: transactionId },
+                { ...value, transaction: transactionId },
             );
         },
         [sourceIdx, device.ieee_address],

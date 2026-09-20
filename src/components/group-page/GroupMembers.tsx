@@ -32,7 +32,7 @@ const GroupMembers = memo(({ sourceIdx, devices, group }: GroupMembersProps) => 
                 sourceIdx,
                 // @ts-expect-error templated API endpoint
                 `${ieee}/request/set`,
-                { ...value, z2m_transaction: transactionId },
+                { ...value, transaction: transactionId },
             );
         },
         [sourceIdx],

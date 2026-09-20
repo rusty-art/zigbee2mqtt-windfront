@@ -183,10 +183,12 @@ export type CommandResponse = {
     data: Record<string, unknown>;
     /** Result status */
     status: "ok" | "error";
-    /** Error message — "group:key1,key2|group:key3" format (present when status is "error") */
+    /** Human-readable error summary (present when status is "error") */
     error?: string;
-    /** Echoed correlation ID from request */
-    z2m_transaction?: string;
+    /** Original error message per failed attribute (present when status is "error") */
+    error_details?: Record<string, string>;
+    /** Echoed correlation ID from request (same field as the bridge API) */
+    transaction?: string;
 };
 
 export type RGBColor = {
